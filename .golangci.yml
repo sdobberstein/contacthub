@@ -1,0 +1,37 @@
+run:
+  go: "1.25"
+  timeout: 5m
+
+linters:
+  enable:
+    - gosec          # security issues (bandit equivalent)
+    - staticcheck    # comprehensive static analysis
+    - errcheck       # unhandled errors
+    - bodyclose      # http response bodies not closed
+    - noctx          # http requests without context
+    - exhaustive     # missing enum cases
+    - nilerr         # returns nil instead of error
+    - contextcheck   # improper context propagation
+    - sqlclosecheck  # sql rows/statements not closed
+    - gocritic       # various code quality checks
+
+linters-settings:
+  gosec:
+    severity: medium
+    confidence: medium
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - security
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    # Relax errcheck in tests
+    - path: "_test.go"
+      linters:
+        - errcheck

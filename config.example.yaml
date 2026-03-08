@@ -1,0 +1,66 @@
+# ContactHub configuration
+# Copy to config.yaml and adjust for your environment.
+# Any value can be overridden with a CONTACTHUB_* environment variable.
+# Example: server.listen -> CONTACTHUB_SERVER_LISTEN
+
+server:
+  # Address and port to listen on.
+  listen: ":8080"
+
+  # Canonical base URL. Optional — ContactHub derives it from request headers
+  # (RFC 7239 Forwarded / X-Forwarded-*) when not set. Set this if your proxy
+  # does not forward host headers correctly, or for subpath deployments.
+  # base_url: "https://contacts.example.com"
+
+  # Path prefix for subpath deployments. Optional.
+  # path_prefix: "/contacts"
+
+  # IPs or CIDRs to trust forwarded headers from.
+  # Only headers from these addresses are used to derive scheme/host/prefix.
+  # WARNING: do not add untrusted networks here.
+  trusted_proxies:
+    - "127.0.0.1"
+    - "::1"
+    # - "10.0.0.0/8"
+    # - "172.16.0.0/12"
+    # - "192.168.0.0/16"
+
+auth:
+  # Authentication provider for the web UI.
+  # Options: local (default), oidc, ldap, proxy
+  # CardDAV clients always authenticate with app passwords regardless of this setting.
+  provider: local
+
+  session:
+    # Absolute session lifetime in seconds. Default: 86400 (24h)
+    max_age: 86400
+    # Idle session timeout in seconds. Default: 7200 (2h)
+    idle_timeout: 7200
+
+  # Rate limiting for login and app password endpoints.
+  rate_limit:
+    # Maximum attempts per window per IP.
+    max_attempts: 5
+    # Window duration in seconds.
+    window: 900
+
+database:
+  # Path to the SQLite database file.
+  path: "/data/contacthub.db"
+
+  # Optional: encryption key for SQLCipher (requires -tags sqlcipher build).
+  # Use an environment variable reference — never hardcode secrets.
+  # encryption_key: "${CONTACTHUB_DB_KEY}"
+
+log:
+  # Log level: debug, info, warn, error
+  level: "info"
+  # Log format: json (for log aggregators), text (for human reading)
+  format: "json"
+
+# First-run admin account creation.
+# If no users exist on startup, an admin account is created from these values.
+# Use environment variables — remove this section after first run.
+# admin:
+#   username: "${CONTACTHUB_ADMIN_USER}"
+#   password: "${CONTACTHUB_ADMIN_PASSWORD}"

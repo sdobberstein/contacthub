@@ -1,0 +1,21 @@
+services:
+  contacthub:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      # Override any config.yaml value with CONTACTHUB_* env vars.
+      # Required on first run if no users exist:
+      # CONTACTHUB_ADMIN_USER: admin
+      # CONTACTHUB_ADMIN_PASSWORD: changeme
+      CONTACTHUB_DB_PATH: /data/contacthub.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["/app/contacthub", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
