@@ -87,7 +87,7 @@ func Load(path string) (*Config, error) {
 	cfg := defaults()
 
 	if path != "" {
-		f, err := os.Open(path)
+		f, err := os.Open(path) //nolint:gosec // G304: path is operator-supplied (CLI flag / env var), not user input
 		if err != nil {
 			return nil, fmt.Errorf("open config: %w", err)
 		}
