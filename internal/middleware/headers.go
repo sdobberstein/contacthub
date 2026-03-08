@@ -1,3 +1,4 @@
+// Package middleware provides HTTP middleware for the contacthub server.
 package middleware
 
 import "net/http"

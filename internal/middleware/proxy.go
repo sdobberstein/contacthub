@@ -77,7 +77,7 @@ func derive(r *http.Request, trusted []*net.IPNet, staticBaseURL, staticPathPref
 	if port := r.Header.Get("X-Forwarded-Port"); port != "" {
 		// Only append port if not already in host and not the default for the scheme.
 		if !strings.Contains(info.Host, ":") {
-			if !(info.Scheme == "https" && port == "443") && !(info.Scheme == "http" && port == "80") {
+			if (info.Scheme != "https" || port != "443") && (info.Scheme != "http" || port != "80") {
 				info.Host = info.Host + ":" + strings.TrimSpace(port)
 			}
 		}

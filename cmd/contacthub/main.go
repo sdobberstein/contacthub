@@ -1,3 +1,4 @@
+// Package main is the entry point for the contacthub server.
 package main
 
 import (
@@ -82,7 +83,7 @@ func main() {
 func handleHealthz(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"}) //nolint:errcheck
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"}) //nolint:errcheck // write to ResponseWriter, error unrecoverable
 }
 
 func newLogger(cfg config.LogConfig) *slog.Logger {

@@ -1,3 +1,4 @@
+// Package config loads and validates contacthub server configuration.
 package config
 
 import (
@@ -8,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Config is the root configuration for the contacthub server.
 type Config struct {
 	Server   ServerConfig   `yaml:"server"`
 	Auth     AuthConfig     `yaml:"auth"`
@@ -16,6 +18,7 @@ type Config struct {
 	Admin    *AdminConfig   `yaml:"admin,omitempty"`
 }
 
+// ServerConfig holds HTTP server settings.
 type ServerConfig struct {
 	Listen         string   `yaml:"listen"`
 	BaseURL        string   `yaml:"base_url"`
@@ -23,32 +26,38 @@ type ServerConfig struct {
 	TrustedProxies []string `yaml:"trusted_proxies"`
 }
 
+// AuthConfig holds authentication and session settings.
 type AuthConfig struct {
 	Provider  string        `yaml:"provider"`
 	Session   SessionConfig `yaml:"session"`
 	RateLimit RateLimitConfig `yaml:"rate_limit"`
 }
 
+// SessionConfig holds session lifetime settings.
 type SessionConfig struct {
 	MaxAge      int `yaml:"max_age"`
 	IdleTimeout int `yaml:"idle_timeout"`
 }
 
+// RateLimitConfig holds rate limiting settings for auth endpoints.
 type RateLimitConfig struct {
 	MaxAttempts int `yaml:"max_attempts"`
 	Window      int `yaml:"window"`
 }
 
+// DatabaseConfig holds SQLite database settings.
 type DatabaseConfig struct {
 	Path          string `yaml:"path"`
 	EncryptionKey string `yaml:"encryption_key"`
 }
 
+// LogConfig holds structured logging settings.
 type LogConfig struct {
 	Level  string `yaml:"level"`
 	Format string `yaml:"format"`
 }
 
+// AdminConfig holds first-run admin bootstrap credentials.
 type AdminConfig struct {
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
@@ -87,11 +96,11 @@ func Load(path string) (*Config, error) {
 	cfg := defaults()
 
 	if path != "" {
-		f, err := os.Open(path) //nolint:gosec // G304: path is operator-supplied (CLI flag / env var), not user input
+		f, err := os.Open(path) // #nosec G304 -- path is operator-supplied (CLI flag / env var), not user input
 		if err != nil {
 			return nil, fmt.Errorf("open config: %w", err)
 		}
-		defer f.Close()
+		defer f.Close() //nolint:errcheck // read-only file, close error not actionable
 
 		dec := yaml.NewDecoder(f)
 		dec.KnownFields(true)
