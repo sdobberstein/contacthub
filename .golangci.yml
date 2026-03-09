@@ -15,24 +15,24 @@ linters:
     - sqlclosecheck
     - gocritic
     - revive
-
-linters-settings:
-  gosec:
-    excludes:
-      - G104 # redundant with errcheck
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
+  settings:
+    gosec:
+      excludes:
+        - G104 # redundant with errcheck
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+  exclusions:
+    rules:
+      - path: "_test.go"
+        linters:
+          - errcheck
 
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude-rules:
-    - path: "_test.go"
-      linters:
-        - errcheck
