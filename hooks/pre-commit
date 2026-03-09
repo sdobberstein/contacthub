@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "→ go vet"
+go vet ./...
+
+echo "→ golangci-lint"
+golangci-lint run ./...
+
+echo "→ gosec"
+gosec ./...
+
+echo "→ go test"
+go test ./...

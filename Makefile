@@ -1,4 +1,4 @@
-.PHONY: build test lint vuln run docker-build docker-up docker-down clean
+.PHONY: build test lint vuln run docker-build docker-up docker-down clean setup
 
 BINARY  := bin/contacthub
 VERSION := 0.1.0-dev
@@ -30,6 +30,9 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+setup:
+	git config core.hooksPath hooks
 
 clean:
 	rm -rf bin/ coverage.out coverage.html
