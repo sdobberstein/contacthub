@@ -23,6 +23,7 @@ import (
 	"github.com/sdobberstein/contacthub/internal/middleware"
 	"github.com/sdobberstein/contacthub/internal/migrations"
 	"github.com/sdobberstein/contacthub/internal/store/sqlite"
+	"github.com/sdobberstein/contacthub/internal/wellknown"
 )
 
 const version = "0.1.0-dev"
@@ -75,12 +76,20 @@ func run() error {
 
 	authProvider := local.New(db)
 
+	// Register WebDAV HTTP methods not in chi's default set.
+	for _, m := range []string{"PROPFIND", "PROPPATCH", "MKCOL", "COPY", "MOVE", "REPORT", "ACL", "LOCK", "UNLOCK"} {
+		chi.RegisterMethod(m)
+	}
+
 	r := chi.NewRouter()
 	r.Use(middleware.ProxyHeaders(cfg.Server.TrustedProxies, cfg.Server.BaseURL, cfg.Server.PathPrefix))
 	r.Use(middleware.SecurityHeaders)
 	r.Use(middleware.RequestLogger(logger))
 
 	r.Get("/healthz", handleHealthz(db))
+
+	// RFC 6764 §5: well-known redirect — no auth required, fixed context path.
+	r.HandleFunc("/.well-known/carddav", wellknown.Handler)
 
 	// First-run setup (only accessible when no users exist).
 	r.With(middleware.SetupGuard(db)).
@@ -91,6 +100,19 @@ func run() error {
 		r.With(middleware.LoginRateLimiter(cfg.Auth.RateLimit)).
 			HandleFunc("/login", handler.LoginHandler(db, authProvider, cfg.Auth, tmpl))
 		r.Post("/logout", handler.LogoutHandler(db))
+	})
+
+	// CardDAV/WebDAV routes — all require authentication.
+	r.Route("/dav", func(r chi.Router) {
+		r.Use(middleware.RequireAuth(db))
+
+		// Context path (RFC 6764 §6): PROPFIND returns current-user-principal.
+		r.Options("/", handler.DAVOptions)
+		r.MethodFunc("PROPFIND", "/", handler.DAVRootPropfind)
+
+		// Principal resource (RFC 4918 + RFC 5397 + RFC 6352).
+		r.Options("/principals/users/{username}/", handler.DAVOptions)
+		r.MethodFunc("PROPFIND", "/principals/users/{username}/", handler.PrincipalPropfind(db))
 	})
 
 	srv := &http.Server{

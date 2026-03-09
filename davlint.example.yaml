@@ -1,0 +1,23 @@
+# davlint configuration for local development testing.
+# Run `make seed` first to create the test principal and get the app password token,
+# then paste the token into the password field below.
+
+server:
+  url: "http://localhost:8080"
+  # context_path: "/dav/"  # Optional. If omitted, discovered via /.well-known/carddav redirect.
+
+principals:
+  - username: "alice"
+    password: ""  # paste the chub_... token printed by `make seed`
+
+# Limit to rfc6764 for Phase 5.
+# Expand as more phases are implemented.
+suites:
+  - rfc6764
+
+severity: must
+
+options:
+  cleanup: true
+  timeout: 10s
+  fail_fast: false

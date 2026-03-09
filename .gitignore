@@ -1,6 +1,7 @@
 # Binaries
 bin/
 /contacthub
+/seed
 *.exe
 *.exe~
 *.dll
@@ -22,6 +23,9 @@ config.yaml
 dev.db
 dev.db-wal
 dev.db-shm
+
+# davlint local config (contains app password tokens — copy from davlint.example.yaml)
+davlint.yaml
 
 # IDE
 .idea/
