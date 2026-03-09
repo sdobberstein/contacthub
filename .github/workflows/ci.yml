@@ -41,9 +41,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v2.11.2
-          # goinstall required for Go 1.26+ compatibility
-          install-mode: goinstall
+          version: latest
 
   security:
     name: Security
