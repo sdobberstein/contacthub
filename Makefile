@@ -1,4 +1,4 @@
-.PHONY: build test lint vuln run docker-build docker-up docker-down clean setup
+.PHONY: build test lint vuln run dev docker-build docker-up docker-down clean setup
 
 BINARY  := bin/contacthub
 VERSION := 0.1.0-dev
@@ -21,6 +21,9 @@ vuln:
 
 run:
 	go run ./cmd/contacthub
+
+dev:
+	CONTACTHUB_DATABASE_PATH=./dev.db go run ./cmd/contacthub
 
 docker-build:
 	docker build -t contacthub:latest .

@@ -1,6 +1,7 @@
 services:
   contacthub:
     build: .
+    image: contacthub:latest
     ports:
       - "8080:8080"
     volumes:
@@ -11,7 +12,7 @@ services:
       # Required on first run if no users exist:
       # CONTACTHUB_ADMIN_USER: admin
       # CONTACTHUB_ADMIN_PASSWORD: changeme
-      CONTACTHUB_DB_PATH: /data/contacthub.db
+      CONTACTHUB_DATABASE_PATH: /data/contacthub.db
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]

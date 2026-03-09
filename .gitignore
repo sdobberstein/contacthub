@@ -19,6 +19,9 @@ go.work.sum
 # Data & config (never commit real config or data)
 data/
 config.yaml
+dev.db
+dev.db-wal
+dev.db-shm
 
 # IDE
 .idea/
