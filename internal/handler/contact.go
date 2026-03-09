@@ -46,11 +46,19 @@ func ContactGet(st store.Store) http.HandlerFunc {
 			}
 		}
 
-		w.Header().Set("Content-Type", "text/vcard; charset=utf-8")
+		// Content negotiation: serve vCard 3.0 if explicitly requested.
+		vcardData := contact.VCard
+		contentType := "text/vcard; charset=utf-8"
+		if strings.Contains(r.Header.Get("Accept"), "version=3.0") {
+			vcardData = vcard.ToV3(vcardData)
+			contentType = "text/vcard; version=3.0; charset=utf-8"
+		}
+
+		w.Header().Set("Content-Type", contentType)
 		w.Header().Set("ETag", fmt.Sprintf("%q", contact.ETag))
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(contact.VCard)))
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(vcardData)))
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(contact.VCard)) //nolint:errcheck // write to ResponseWriter, error unrecoverable
+		_, _ = w.Write([]byte(vcardData)) //nolint:errcheck // write to ResponseWriter, error unrecoverable
 	}
 }
 
@@ -99,6 +107,16 @@ func ContactPut(st store.Store) http.HandlerFunc {
 		}
 
 		blob := string(body)
+
+		// Enforce photo size limit before any conversion.
+		if err := vcard.ValidatePhotoSize(blob); err != nil {
+			http.Error(w, err.Error(), http.StatusRequestEntityTooLarge)
+			return
+		}
+
+		// Normalise to vCard 4.0 for internal storage.
+		blob = vcard.ToV4(blob)
+
 		etag := vcard.ComputeETag(blob)
 		uid := vcard.ExtractUID(blob)
 		if uid == "" {

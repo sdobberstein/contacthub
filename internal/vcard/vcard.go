@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
+
 // ComputeETag returns the first 16 bytes of SHA-256(blob) as a lowercase hex string.
 // The result is stored without surrounding quotes; callers add quotes for HTTP headers.
 func ComputeETag(blob string) string {
@@ -82,6 +83,43 @@ func ReplaceUID(blob, newUID string) string {
 	}
 	// No UID found — insert before END:VCARD.
 	return strings.Replace(blob, "END:VCARD", fmt.Sprintf("UID:%s\r\nEND:VCARD", newUID), 1)
+}
+
+// maxPhotoBytes is the maximum allowed decoded size of an inline PHOTO (250 KB).
+const maxPhotoBytes = 250 * 1024
+
+// ExtractVersion returns the value of the VERSION property, or "".
+func ExtractVersion(blob string) string {
+	return extractProp(blob, "VERSION")
+}
+
+// ValidatePhotoSize returns an error if any inline PHOTO in blob exceeds 250 KB decoded.
+// Both vCard 4.0 data URIs (PHOTO:data:...;base64,...) and 3.0 ENCODING=b form are checked.
+func ValidatePhotoSize(blob string) error {
+	unfolded := unfold(blob)
+	for _, line := range strings.Split(unfolded, "\n") {
+		line = strings.TrimRight(line, "\r")
+		upper := strings.ToUpper(line)
+		if !strings.HasPrefix(upper, "PHOTO") {
+			continue
+		}
+		var b64 string
+		if idx := strings.Index(line, "base64,"); idx >= 0 {
+			b64 = line[idx+7:]
+		} else if strings.Contains(upper, "ENCODING=B") {
+			if idx := strings.Index(line, ":"); idx >= 0 {
+				b64 = line[idx+1:]
+			}
+		}
+		if b64 == "" {
+			continue
+		}
+		// Approximate decoded size: base64 chars × 3/4.
+		if len(b64)*3/4 > maxPhotoBytes {
+			return fmt.Errorf("inline photo exceeds 250 KB limit")
+		}
+	}
+	return nil
 }
 
 // extractProp searches the unfolded blob for a property named propName

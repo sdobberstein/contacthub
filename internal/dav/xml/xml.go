@@ -192,6 +192,15 @@ func (b *PropBuilder) AddAddressbookResourceType() {
 	b.buf.WriteString("<D:resourcetype><D:collection/><C:addressbook/></D:resourcetype>")
 }
 
+// AddSupportedAddressData appends the CardDAV supported-address-data property
+// advertising support for both vCard 3.0 and 4.0 (RFC 6352 §6.2.2).
+func (b *PropBuilder) AddSupportedAddressData() {
+	b.buf.WriteString(`<C:supported-address-data>`)
+	b.buf.WriteString(`<C:address-data-type content-type="text/vcard" version="3.0"/>`)
+	b.buf.WriteString(`<C:address-data-type content-type="text/vcard" version="4.0"/>`)
+	b.buf.WriteString(`</C:supported-address-data>`)
+}
+
 // AddCustomProp appends a namespaced property element as a self-closing tag.
 // Used when building PROPPATCH responses for dead properties.
 func (b *PropBuilder) AddCustomProp(ns, local string) {

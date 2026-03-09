@@ -287,6 +287,10 @@ func buildAddressBookProps(pf *davxml.PropFind, ab *store.AddressBook) []davxml.
 				b.AddDAVText("getlastmodified", ab.UpdatedAt.UTC().Format(http.TimeFormat))
 			},
 		},
+		{
+			davxml.NScarddav, "supported-address-data",
+			func(b *davxml.PropBuilder) { b.AddSupportedAddressData() },
+		},
 	}
 	return buildPropResponse(pf, props)
 }
