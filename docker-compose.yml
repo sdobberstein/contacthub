@@ -14,7 +14,7 @@ services:
       CONTACTHUB_DB_PATH: /data/contacthub.db
     restart: unless-stopped
     healthcheck:
-      test: ["/app/contacthub", "healthcheck"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
