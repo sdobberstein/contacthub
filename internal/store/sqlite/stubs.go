@@ -1,4 +1,4 @@
-//nolint:revive // stub implementations pending Phase 4+ — doc comments omitted intentionally
+//nolint:revive // stub implementations pending future phases — doc comments omitted intentionally
 package sqlite
 
 import (
@@ -7,51 +7,6 @@ import (
 
 	"github.com/sdobberstein/contacthub/internal/store"
 )
-
-// --- AddressBookStore ---
-
-func (d *DB) CreateAddressBook(_ context.Context, _ *store.AddressBook) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) GetAddressBook(_ context.Context, _ string) (*store.AddressBook, error) {
-	return nil, store.ErrNotImplemented
-}
-func (d *DB) GetAddressBookByName(_ context.Context, _, _ string) (*store.AddressBook, error) {
-	return nil, store.ErrNotImplemented
-}
-func (d *DB) ListAddressBooks(_ context.Context, _ string) ([]*store.AddressBook, error) {
-	return nil, store.ErrNotImplemented
-}
-func (d *DB) UpdateAddressBook(_ context.Context, _ *store.AddressBook) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) DeleteAddressBook(_ context.Context, _ string) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) BumpSyncToken(_ context.Context, _ string) (int64, error) {
-	return 0, store.ErrNotImplemented
-}
-
-// --- ContactStore ---
-
-func (d *DB) CreateContact(_ context.Context, _ *store.Contact) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) GetContactByFilename(_ context.Context, _, _ string) (*store.Contact, error) {
-	return nil, store.ErrNotImplemented
-}
-func (d *DB) GetContactByUID(_ context.Context, _, _ string) (*store.Contact, error) {
-	return nil, store.ErrNotImplemented
-}
-func (d *DB) ListContacts(_ context.Context, _ string) ([]*store.Contact, error) {
-	return nil, store.ErrNotImplemented
-}
-func (d *DB) UpdateContact(_ context.Context, _ *store.Contact) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) DeleteContact(_ context.Context, _ string) error {
-	return store.ErrNotImplemented
-}
 
 // --- SyncStore ---
 
@@ -103,22 +58,3 @@ func (d *DB) DeleteLock(_ context.Context, _ string) error {
 func (d *DB) PurgeExpiredLocks(_ context.Context) error {
 	return store.ErrNotImplemented
 }
-
-// --- PropertyStore ---
-
-func (d *DB) SetProperty(_ context.Context, _ *store.Property) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) GetProperty(_ context.Context, _, _, _ string) (*store.Property, error) {
-	return nil, store.ErrNotImplemented
-}
-func (d *DB) ListProperties(_ context.Context, _ string) ([]*store.Property, error) {
-	return nil, store.ErrNotImplemented
-}
-func (d *DB) DeleteProperty(_ context.Context, _, _, _ string) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) DeleteResourceProperties(_ context.Context, _ string) error {
-	return store.ErrNotImplemented
-}
-

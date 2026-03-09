@@ -182,6 +182,85 @@ func statusText(code int) string {
 	}
 }
 
+// AddAddressbookResourceType appends the CardDAV address book resource type.
+func (b *PropBuilder) AddAddressbookResourceType() {
+	b.buf.WriteString("<D:resourcetype><D:collection/><C:addressbook/></D:resourcetype>")
+}
+
+// AddCustomProp appends a namespaced property element as a self-closing tag.
+// Used when building PROPPATCH and PROPFIND responses for dead properties.
+func (b *PropBuilder) AddCustomProp(ns, local string) {
+	switch ns {
+	case NSdav:
+		fmt.Fprintf(&b.buf, "<D:%s/>", local)
+	case NScarddav:
+		fmt.Fprintf(&b.buf, "<C:%s/>", local)
+	default:
+		fmt.Fprintf(&b.buf, `<ns0:%s xmlns:ns0="%s"/>`, local, escXML(ns))
+	}
+}
+
+// --- PROPPATCH decoding ---
+
+// PropPatchOp is a single set or remove operation from a PROPPATCH request.
+type PropPatchOp struct {
+	Remove bool   // true = remove, false = set
+	NS     string // property namespace
+	Local  string // property local name
+	Value  string // raw inner XML for set ops; empty for remove
+}
+
+// PropPatch is the decoded body of a PROPPATCH request (RFC 4918 §9.2).
+type PropPatch struct {
+	Ops []PropPatchOp
+}
+
+// propPatchXML mirrors the XML structure of a <D:propertyupdate> element.
+type propPatchXML struct {
+	XMLName xml.Name       `xml:"DAV: propertyupdate"`
+	Sets    []propPatchSet `xml:"DAV: set"`
+	Removes []propPatchSet `xml:"DAV: remove"`
+}
+
+type propPatchSet struct {
+	Prop struct {
+		Elems []propPatchElem `xml:",any"`
+	} `xml:"DAV: prop"`
+}
+
+type propPatchElem struct {
+	XMLName xml.Name
+	Inner   []byte `xml:",innerxml"`
+}
+
+// ParsePropPatch decodes a PROPPATCH request body.
+func ParsePropPatch(body []byte) (*PropPatch, error) {
+	var pu propPatchXML
+	if err := xml.Unmarshal(body, &pu); err != nil {
+		return nil, fmt.Errorf("parse propertyupdate: %w", err)
+	}
+	pp := &PropPatch{}
+	for _, s := range pu.Sets {
+		for _, e := range s.Prop.Elems {
+			pp.Ops = append(pp.Ops, PropPatchOp{
+				NS:    e.XMLName.Space,
+				Local: e.XMLName.Local,
+				Value: strings.TrimSpace(string(e.Inner)),
+			})
+		}
+	}
+	for _, r := range pu.Removes {
+		for _, e := range r.Prop.Elems {
+			pp.Ops = append(pp.Ops, PropPatchOp{
+				Remove: true,
+				NS:     e.XMLName.Space,
+				Local:  e.XMLName.Local,
+			})
+		}
+	}
+	return pp, nil
+}
+
 func escXML(s string) string {
 	var b strings.Builder
 	_ = xml.EscapeText(&b, []byte(s)) //nolint:errcheck // strings.Builder.Write never fails

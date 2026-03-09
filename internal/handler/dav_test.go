@@ -21,8 +21,12 @@ func withPrincipal(r *http.Request, p *auth.Principal) *http.Request {
 }
 
 // withChiParam injects a chi URL parameter into the request context.
+// If a route context already exists it is reused, so multiple calls accumulate params.
 func withChiParam(r *http.Request, key, val string) *http.Request {
-	rctx := chi.NewRouteContext()
+	rctx := chi.RouteContext(r.Context())
+	if rctx == nil {
+		rctx = chi.NewRouteContext()
+	}
 	rctx.URLParams.Add(key, val)
 	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 }

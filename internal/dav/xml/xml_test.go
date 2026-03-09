@@ -217,6 +217,135 @@ func TestMultistatus_SkipsEmptyPropStats(t *testing.T) {
 	}
 }
 
+func TestPropBuilder_AddAddressbookResourceType(t *testing.T) {
+	var b davxml.PropBuilder
+	b.AddAddressbookResourceType()
+	got := string(b.InnerXML())
+	if !strings.Contains(got, "<D:collection/>") {
+		t.Errorf("missing D:collection: %q", got)
+	}
+	if !strings.Contains(got, "<C:addressbook/>") {
+		t.Errorf("missing C:addressbook: %q", got)
+	}
+}
+
+func TestPropBuilder_AddCustomProp_DAVNamespace(t *testing.T) {
+	var b davxml.PropBuilder
+	b.AddCustomProp("DAV:", "getetag")
+	got := string(b.InnerXML())
+	if got != "<D:getetag/>" {
+		t.Errorf("got %q, want <D:getetag/>", got)
+	}
+}
+
+func TestPropBuilder_AddCustomProp_CustomNamespace(t *testing.T) {
+	var b davxml.PropBuilder
+	b.AddCustomProp("http://example.com/ns/", "color")
+	got := string(b.InnerXML())
+	if !strings.Contains(got, `xmlns:ns0="http://example.com/ns/"`) {
+		t.Errorf("missing namespace declaration: %q", got)
+	}
+	if !strings.Contains(got, "color") {
+		t.Errorf("missing element name: %q", got)
+	}
+}
+
+// --- ParsePropPatch ---
+
+func TestParsePropPatch_SetOperation(t *testing.T) {
+	body := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<D:propertyupdate xmlns:D="DAV:" xmlns:X="http://example.com/ns/">
+  <D:set>
+    <D:prop>
+      <X:test-prop>hello</X:test-prop>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>`)
+
+	pp, err := davxml.ParsePropPatch(body)
+	if err != nil {
+		t.Fatalf("ParsePropPatch: %v", err)
+	}
+	if len(pp.Ops) != 1 {
+		t.Fatalf("want 1 op, got %d", len(pp.Ops))
+	}
+	op := pp.Ops[0]
+	if op.Remove {
+		t.Error("want set op, got remove")
+	}
+	if op.NS != "http://example.com/ns/" {
+		t.Errorf("NS: got %q", op.NS)
+	}
+	if op.Local != "test-prop" {
+		t.Errorf("Local: got %q", op.Local)
+	}
+	if op.Value != "hello" {
+		t.Errorf("Value: got %q", op.Value)
+	}
+}
+
+func TestParsePropPatch_RemoveOperation(t *testing.T) {
+	body := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<D:propertyupdate xmlns:D="DAV:" xmlns:X="http://example.com/ns/">
+  <D:remove>
+    <D:prop>
+      <X:test-prop/>
+    </D:prop>
+  </D:remove>
+</D:propertyupdate>`)
+
+	pp, err := davxml.ParsePropPatch(body)
+	if err != nil {
+		t.Fatalf("ParsePropPatch: %v", err)
+	}
+	if len(pp.Ops) != 1 {
+		t.Fatalf("want 1 op, got %d", len(pp.Ops))
+	}
+	if !pp.Ops[0].Remove {
+		t.Error("want remove op")
+	}
+	if pp.Ops[0].Local != "test-prop" {
+		t.Errorf("Local: got %q", pp.Ops[0].Local)
+	}
+}
+
+func TestParsePropPatch_MultipleOps(t *testing.T) {
+	body := []byte(`<?xml version="1.0" encoding="utf-8"?>
+<D:propertyupdate xmlns:D="DAV:" xmlns:X="http://example.com/ns/">
+  <D:set>
+    <D:prop>
+      <X:prop-a>val-a</X:prop-a>
+      <X:prop-b>val-b</X:prop-b>
+    </D:prop>
+  </D:set>
+  <D:remove>
+    <D:prop>
+      <X:prop-c/>
+    </D:prop>
+  </D:remove>
+</D:propertyupdate>`)
+
+	pp, err := davxml.ParsePropPatch(body)
+	if err != nil {
+		t.Fatalf("ParsePropPatch: %v", err)
+	}
+	if len(pp.Ops) != 3 {
+		t.Fatalf("want 3 ops, got %d", len(pp.Ops))
+	}
+	if pp.Ops[0].Remove || pp.Ops[1].Remove {
+		t.Error("first two ops should be set")
+	}
+	if !pp.Ops[2].Remove {
+		t.Error("third op should be remove")
+	}
+}
+
+func TestParsePropPatch_InvalidXML(t *testing.T) {
+	if _, err := davxml.ParsePropPatch([]byte(`<notxml`)); err == nil {
+		t.Error("want error for invalid XML")
+	}
+}
+
 func TestMultistatus_XmlEscapesHref(t *testing.T) {
 	ms := davxml.NewMultistatus()
 	ms.AddResponse("/dav/path?a=1&b=2", davxml.OK([]byte("<D:displayname>x</D:displayname>")))

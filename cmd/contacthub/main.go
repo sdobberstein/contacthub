@@ -113,6 +113,33 @@ func run() error {
 		// Principal resource (RFC 4918 + RFC 5397 + RFC 6352).
 		r.Options("/principals/users/{username}/", handler.DAVOptions)
 		r.MethodFunc("PROPFIND", "/principals/users/{username}/", handler.PrincipalPropfind(db))
+
+		// Address book home set: /dav/addressbooks/{username}/
+		r.Route("/addressbooks/{username}", func(r chi.Router) {
+			r.Options("/", handler.DAVOptions)
+			r.MethodFunc("PROPFIND", "/", handler.HomeSetPropfind(db))
+
+			// Address book collection: /dav/addressbooks/{username}/{book}/
+			r.Route("/{book}", func(r chi.Router) {
+				r.Options("/", handler.DAVOptions)
+				r.MethodFunc("MKCOL", "/", handler.AddressBookMkcol(db))
+				r.MethodFunc("PROPFIND", "/", handler.AddressBookPropfind(db))
+				r.MethodFunc("PROPPATCH", "/", handler.PropPatchHandler(db))
+				r.Delete("/", handler.AddressBookDelete(db))
+
+				// Contact resources: /dav/addressbooks/{username}/{book}/{filename}
+				r.Route("/{filename}", func(r chi.Router) {
+					r.Options("/", handler.DAVOptions)
+					r.Get("/", handler.ContactGet(db))
+					r.Put("/", handler.ContactPut(db))
+					r.Delete("/", handler.ContactDelete(db))
+					r.MethodFunc("PROPFIND", "/", handler.ContactPropfind(db))
+					r.MethodFunc("PROPPATCH", "/", handler.PropPatchHandler(db))
+					r.MethodFunc("COPY", "/", handler.ContactCopy(db))
+					r.MethodFunc("MOVE", "/", handler.ContactMove(db))
+				})
+			})
+		})
 	})
 
 	srv := &http.Server{
