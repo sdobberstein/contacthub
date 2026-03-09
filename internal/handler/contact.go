@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -262,7 +263,18 @@ func ContactPropfind(st store.Store) http.HandlerFunc {
 		}
 
 		ms := davxml.NewMultistatus()
-		ms.AddResponse(r.URL.Path, buildContactProps(pf, contact)...)
+		propstats := buildContactProps(pf, contact)
+
+		// Include dead properties (RFC 4918 §9.2): for allprop list all stored
+		// properties; for a specific request look up each non-live property.
+		deadProps, deadErr := deadPropertyPropstats(r.Context(), st, r.URL.Path, pf)
+		if deadErr != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		propstats = append(propstats, deadProps...)
+
+		ms.AddResponse(r.URL.Path, propstats...)
 		writeMultistatus(w, ms)
 	}
 }
@@ -509,6 +521,63 @@ func destinationPath(r *http.Request) (string, error) {
 		return u.Path, nil
 	}
 	return dst, nil
+}
+
+// deadPropertyPropstats fetches stored dead properties and returns them as PropStatData.
+// For allprop: all stored properties are returned in a 200 propstat.
+// For a specific prop request: each requested non-live property is looked up;
+// found ones go into 200, missing ones into 404.
+func deadPropertyPropstats(ctx context.Context, st store.PropertyStore, resource string, pf *davxml.PropFind) ([]davxml.PropStatData, error) {
+	if pf.IsAllProp() || pf.IsPropName() {
+		props, err := st.ListProperties(ctx, resource)
+		if err != nil {
+			return nil, err
+		}
+		if len(props) == 0 {
+			return nil, nil
+		}
+		var b davxml.PropBuilder
+		for _, p := range props {
+			b.AddCustomPropValue(p.Namespace, p.Name, p.Value)
+		}
+		return []davxml.PropStatData{davxml.OK(b.InnerXML())}, nil
+	}
+
+	// Specific prop request — check each requested prop against the live prop set,
+	// then look up unknowns in the property store.
+	liveProps := map[string]bool{
+		davxml.NSdav + " resourcetype":      true,
+		davxml.NSdav + " getetag":           true,
+		davxml.NSdav + " getcontenttype":    true,
+		davxml.NSdav + " getcontentlength":  true,
+		davxml.NSdav + " getlastmodified":   true,
+		davxml.NSdav + " displayname":       true,
+	}
+
+	var found, missing davxml.PropBuilder
+	for _, name := range pf.RequestedProps() {
+		if liveProps[name.Space+" "+name.Local] {
+			continue // handled by buildContactProps
+		}
+		p, err := st.GetProperty(ctx, resource, name.Space, name.Local)
+		if errors.Is(err, store.ErrNotFound) {
+			missing.AddCustomProp(name.Space, name.Local)
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		found.AddCustomPropValue(p.Namespace, p.Name, p.Value)
+	}
+
+	var out []davxml.PropStatData
+	if inner := found.InnerXML(); len(inner) > 0 {
+		out = append(out, davxml.OK(inner))
+	}
+	if inner := missing.InnerXML(); len(inner) > 0 {
+		out = append(out, davxml.NotFoundRaw(inner))
+	}
+	return out, nil
 }
 
 // parseContactPath extracts the address book name and filename from a contact path.

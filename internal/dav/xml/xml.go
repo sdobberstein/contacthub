@@ -118,6 +118,11 @@ func OK(inner []byte) PropStatData {
 	return PropStatData{Inner: inner, Status: 200}
 }
 
+// NotFoundRaw returns a PropStatData with status 404 from pre-built inner XML.
+func NotFoundRaw(inner []byte) PropStatData {
+	return PropStatData{Inner: inner, Status: 404}
+}
+
 // NotFound returns a PropStatData with status 404 containing empty property elements.
 func NotFound(names ...xml.Name) PropStatData {
 	var b PropBuilder
@@ -188,7 +193,7 @@ func (b *PropBuilder) AddAddressbookResourceType() {
 }
 
 // AddCustomProp appends a namespaced property element as a self-closing tag.
-// Used when building PROPPATCH and PROPFIND responses for dead properties.
+// Used when building PROPPATCH responses for dead properties.
 func (b *PropBuilder) AddCustomProp(ns, local string) {
 	switch ns {
 	case NSdav:
@@ -197,6 +202,20 @@ func (b *PropBuilder) AddCustomProp(ns, local string) {
 		fmt.Fprintf(&b.buf, "<C:%s/>", local)
 	default:
 		fmt.Fprintf(&b.buf, `<ns0:%s xmlns:ns0="%s"/>`, local, escXML(ns))
+	}
+}
+
+// AddCustomPropValue appends a namespaced property element with a text value.
+// Used when building PROPFIND responses for dead properties.
+func (b *PropBuilder) AddCustomPropValue(ns, local, value string) {
+	switch ns {
+	case NSdav:
+		fmt.Fprintf(&b.buf, "<D:%s>%s</D:%s>", local, escXML(value), local)
+	case NScarddav:
+		fmt.Fprintf(&b.buf, "<C:%s>%s</C:%s>", local, escXML(value), local)
+	default:
+		fmt.Fprintf(&b.buf, `<ns0:%s xmlns:ns0="%s">%s</ns0:%s>`,
+			local, escXML(ns), escXML(value), local)
 	}
 }
 
