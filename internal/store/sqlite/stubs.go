@@ -1,4 +1,4 @@
-//nolint:revive // stub implementations pending Phase 3+ — doc comments omitted intentionally
+//nolint:revive // stub implementations pending Phase 4+ — doc comments omitted intentionally
 package sqlite
 
 import (
@@ -7,66 +7,6 @@ import (
 
 	"github.com/sdobberstein/contacthub/internal/store"
 )
-
-// --- UserStore ---
-
-func (d *DB) CreateUser(_ context.Context, _ *store.User) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) GetUserByID(_ context.Context, _ string) (*store.User, error) {
-	return nil, store.ErrNotImplemented
-}
-func (d *DB) GetUserByUsername(_ context.Context, _ string) (*store.User, error) {
-	return nil, store.ErrNotImplemented
-}
-func (d *DB) UpdateUser(_ context.Context, _ *store.User) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) DeleteUser(_ context.Context, _ string) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) ListUsers(_ context.Context) ([]*store.User, error) {
-	return nil, store.ErrNotImplemented
-}
-func (d *DB) CountUsers(_ context.Context) (int, error) {
-	return 0, store.ErrNotImplemented
-}
-
-// --- SessionStore ---
-
-func (d *DB) CreateSession(_ context.Context, _ *store.Session) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) GetSession(_ context.Context, _ string) (*store.Session, error) {
-	return nil, store.ErrNotImplemented
-}
-func (d *DB) DeleteSession(_ context.Context, _ string) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) DeleteUserSessions(_ context.Context, _ string) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) PurgeExpiredSessions(_ context.Context) error {
-	return store.ErrNotImplemented
-}
-
-// --- AppPasswordStore ---
-
-func (d *DB) CreateAppPassword(_ context.Context, _ *store.AppPassword) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) GetAppPasswordByTokenHash(_ context.Context, _ string) (*store.AppPassword, error) {
-	return nil, store.ErrNotImplemented
-}
-func (d *DB) ListAppPasswords(_ context.Context, _ string) ([]*store.AppPassword, error) {
-	return nil, store.ErrNotImplemented
-}
-func (d *DB) UpdateAppPasswordLastUsed(_ context.Context, _ string, _ time.Time) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) DeleteAppPassword(_ context.Context, _ string) error {
-	return store.ErrNotImplemented
-}
 
 // --- AddressBookStore ---
 
@@ -182,11 +122,3 @@ func (d *DB) DeleteResourceProperties(_ context.Context, _ string) error {
 	return store.ErrNotImplemented
 }
 
-// --- AuditStore ---
-
-func (d *DB) AppendAudit(_ context.Context, _ *store.AuditEntry) error {
-	return store.ErrNotImplemented
-}
-func (d *DB) PurgeAuditLog(_ context.Context, _ time.Time) error {
-	return store.ErrNotImplemented
-}

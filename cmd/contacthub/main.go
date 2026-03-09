@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"os"
@@ -16,7 +17,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/sdobberstein/contacthub/internal/auth/local"
 	"github.com/sdobberstein/contacthub/internal/config"
+	"github.com/sdobberstein/contacthub/internal/handler"
 	"github.com/sdobberstein/contacthub/internal/middleware"
 	"github.com/sdobberstein/contacthub/internal/migrations"
 	"github.com/sdobberstein/contacthub/internal/store/sqlite"
@@ -61,11 +64,34 @@ func run() error {
 		return fmt.Errorf("run migrations: %w", err)
 	}
 
+	if err := bootstrapAdmin(context.Background(), db, cfg.Admin, logger); err != nil {
+		return fmt.Errorf("bootstrap admin: %w", err)
+	}
+
+	tmpl, err := template.ParseGlob("templates/**/*.html")
+	if err != nil {
+		return fmt.Errorf("parse templates: %w", err)
+	}
+
+	authProvider := local.New(db)
+
 	r := chi.NewRouter()
 	r.Use(middleware.ProxyHeaders(cfg.Server.TrustedProxies, cfg.Server.BaseURL, cfg.Server.PathPrefix))
 	r.Use(middleware.SecurityHeaders)
 	r.Use(middleware.RequestLogger(logger))
+
 	r.Get("/healthz", handleHealthz(db))
+
+	// First-run setup (only accessible when no users exist).
+	r.With(middleware.SetupGuard(db)).
+		HandleFunc("/setup", handler.SetupHandler(db, tmpl))
+
+	// Auth routes — rate-limited login.
+	r.Route("/auth", func(r chi.Router) {
+		r.With(middleware.LoginRateLimiter(cfg.Auth.RateLimit)).
+			HandleFunc("/login", handler.LoginHandler(db, authProvider, cfg.Auth, tmpl))
+		r.Post("/logout", handler.LogoutHandler(db))
+	})
 
 	srv := &http.Server{
 		Addr:         cfg.Server.Listen,
@@ -91,6 +117,28 @@ func run() error {
 	defer cancel()
 
 	return srv.Shutdown(shutCtx)
+}
+
+// bootstrapAdmin creates the initial admin user from config/env if no users exist.
+func bootstrapAdmin(ctx context.Context, st *sqlite.DB, adminCfg *config.AdminConfig, logger *slog.Logger) error {
+	if adminCfg == nil || adminCfg.Username == "" || adminCfg.Password == "" {
+		return nil
+	}
+
+	n, err := st.CountUsers(ctx)
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		return nil
+	}
+
+	if _, err := local.CreateUser(ctx, st, adminCfg.Username, "", adminCfg.Password, true); err != nil {
+		return err
+	}
+
+	logger.Info("created admin user from config", "username", adminCfg.Username)
+	return nil
 }
 
 func handleHealthz(db *sqlite.DB) http.HandlerFunc {
@@ -124,12 +172,12 @@ func newLogger(cfg config.LogConfig) *slog.Logger {
 
 	opts := &slog.HandlerOptions{Level: level}
 
-	var handler slog.Handler
+	var h slog.Handler
 	if cfg.Format == "text" {
-		handler = slog.NewTextHandler(os.Stdout, opts)
+		h = slog.NewTextHandler(os.Stdout, opts)
 	} else {
-		handler = slog.NewJSONHandler(os.Stdout, opts)
+		h = slog.NewJSONHandler(os.Stdout, opts)
 	}
 
-	return slog.New(handler)
+	return slog.New(h)
 }
