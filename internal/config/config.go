@@ -20,10 +20,14 @@ type Config struct {
 
 // ServerConfig holds HTTP server settings.
 type ServerConfig struct {
-	Listen         string   `yaml:"listen"`
-	BaseURL        string   `yaml:"base_url"`
-	PathPrefix     string   `yaml:"path_prefix"`
-	TrustedProxies []string `yaml:"trusted_proxies"`
+	Listen                      string   `yaml:"listen"`
+	BaseURL                     string   `yaml:"base_url"`
+	PathPrefix                  string   `yaml:"path_prefix"`
+	TrustedProxies              []string `yaml:"trusted_proxies"`
+	// WellKnownCacheMaxAgeSeconds controls the Cache-Control header on the
+	// /.well-known/carddav redirect (RFC 6764 §5). Values > 0 produce
+	// "max-age=<n>, public" (capped at 86400); <= 0 produces "no-cache, must-revalidate".
+	WellKnownCacheMaxAgeSeconds int `yaml:"well_known_cache_max_age_seconds"`
 }
 
 // AuthConfig holds authentication and session settings.
@@ -66,8 +70,9 @@ type AdminConfig struct {
 func defaults() *Config {
 	return &Config{
 		Server: ServerConfig{
-			Listen:         ":8080",
-			TrustedProxies: []string{"127.0.0.1", "::1"},
+			Listen:                      ":8080",
+			TrustedProxies:              []string{"127.0.0.1", "::1"},
+			WellKnownCacheMaxAgeSeconds: 3600,
 		},
 		Auth: AuthConfig{
 			Provider: "local",

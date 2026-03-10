@@ -89,7 +89,7 @@ func run() error {
 	r.Get("/healthz", handleHealthz(db))
 
 	// RFC 6764 §5: well-known redirect — no auth required, fixed context path.
-	r.HandleFunc("/.well-known/carddav", wellknown.Handler)
+	r.HandleFunc("/.well-known/carddav", wellknown.Handler(cfg.Server.WellKnownCacheMaxAgeSeconds))
 
 	// First-run setup (only accessible when no users exist).
 	r.With(middleware.SetupGuard(db)).
