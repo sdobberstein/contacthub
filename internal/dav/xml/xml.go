@@ -169,6 +169,15 @@ func (m *Multistatus) AddResponse(href string, propstats ...PropStatData) {
 	m.buf.WriteString("</D:response>")
 }
 
+// AddStatusResponse appends a <D:response> with a top-level D:status element.
+// Used for non-existent resources in REPORT multiget (RFC 6352 §8.7).
+func (m *Multistatus) AddStatusResponse(href string, status int) {
+	fmt.Fprintf(&m.buf,
+		"<D:response><D:href>%s</D:href><D:status>HTTP/1.1 %d %s</D:status></D:response>",
+		escXML(href), status, statusText(status),
+	)
+}
+
 // Bytes returns the complete, closed multistatus XML document.
 func (m *Multistatus) Bytes() []byte {
 	return []byte(m.buf.String() + "</D:multistatus>")
@@ -190,6 +199,21 @@ func statusText(code int) string {
 // AddAddressbookResourceType appends the CardDAV address book resource type.
 func (b *PropBuilder) AddAddressbookResourceType() {
 	b.buf.WriteString("<D:resourcetype><D:collection/><C:addressbook/></D:resourcetype>")
+}
+
+// AddAddressData appends <C:address-data>vcardText</C:address-data>.
+// The vCard text is XML-escaped so any special characters are encoded safely.
+func (b *PropBuilder) AddAddressData(vcardText string) {
+	fmt.Fprintf(&b.buf, "<C:address-data>%s</C:address-data>", escXML(vcardText))
+}
+
+// AddSupportedReportSet appends the D:supported-report-set property advertising
+// the two required CardDAV report types (RFC 6352 §9.1).
+func (b *PropBuilder) AddSupportedReportSet() {
+	b.buf.WriteString(`<D:supported-report-set>`)
+	b.buf.WriteString(`<D:supported-report><D:report><C:addressbook-query/></D:report></D:supported-report>`)
+	b.buf.WriteString(`<D:supported-report><D:report><C:addressbook-multiget/></D:report></D:supported-report>`)
+	b.buf.WriteString(`</D:supported-report-set>`)
 }
 
 // AddSupportedAddressData appends the CardDAV supported-address-data property
@@ -225,6 +249,68 @@ func (b *PropBuilder) AddCustomPropValue(ns, local, value string) {
 	default:
 		fmt.Fprintf(&b.buf, `<ns0:%s xmlns:ns0="%s">%s</ns0:%s>`,
 			local, escXML(ns), escXML(value), local)
+	}
+}
+
+// --- REPORT request decoding ---
+
+// AddressbookQuery is the decoded body of a C:addressbook-query REPORT (RFC 6352 §8.6).
+type AddressbookQuery struct {
+	XMLName xml.Name     `xml:"urn:ietf:params:xml:ns:carddav addressbook-query"`
+	Prop    *ReqProp     `xml:"DAV: prop"`
+	Filter  *QueryFilter `xml:"urn:ietf:params:xml:ns:carddav filter"`
+}
+
+// QueryFilter is the C:filter element in an addressbook-query REPORT.
+type QueryFilter struct {
+	Test        string       `xml:"test,attr"` // "anyof" (default) or "allof"
+	PropFilters []PropFilter `xml:"urn:ietf:params:xml:ns:carddav prop-filter"`
+}
+
+// PropFilter is a C:prop-filter element (RFC 6352 §8.6.3).
+type PropFilter struct {
+	Name      string     `xml:"name,attr"`
+	TextMatch *TextMatch `xml:"urn:ietf:params:xml:ns:carddav text-match"`
+}
+
+// TextMatch is a C:text-match element (RFC 6352 §8.6.4).
+// Default collation is i;ascii-casemap; default match-type is "contains".
+type TextMatch struct {
+	Value           string `xml:",chardata"`
+	NegateCondition string `xml:"negate-condition,attr"` // "yes" or "no"
+	MatchType       string `xml:"match-type,attr"`       // "contains", "equals", "starts-with", "ends-with"
+}
+
+// AddressbookMultiget is the decoded body of a C:addressbook-multiget REPORT (RFC 6352 §8.7).
+type AddressbookMultiget struct {
+	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:carddav addressbook-multiget"`
+	Prop    *ReqProp `xml:"DAV: prop"`
+	Hrefs   []string `xml:"DAV: href"`
+}
+
+// ParseReport decodes a REPORT request body and returns exactly one of
+// (*AddressbookQuery, *AddressbookMultiget); the other will be nil.
+func ParseReport(body []byte) (*AddressbookQuery, *AddressbookMultiget, error) {
+	// Peek at the root element name to dispatch.
+	var env struct{ XMLName xml.Name }
+	if err := xml.Unmarshal(body, &env); err != nil {
+		return nil, nil, fmt.Errorf("parse report: %w", err)
+	}
+	switch env.XMLName.Local {
+	case "addressbook-query":
+		var q AddressbookQuery
+		if err := xml.Unmarshal(body, &q); err != nil {
+			return nil, nil, fmt.Errorf("parse addressbook-query: %w", err)
+		}
+		return &q, nil, nil
+	case "addressbook-multiget":
+		var m AddressbookMultiget
+		if err := xml.Unmarshal(body, &m); err != nil {
+			return nil, nil, fmt.Errorf("parse addressbook-multiget: %w", err)
+		}
+		return nil, &m, nil
+	default:
+		return nil, nil, fmt.Errorf("unsupported report type %q", env.XMLName.Local)
 	}
 }
 

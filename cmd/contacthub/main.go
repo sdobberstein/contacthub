@@ -125,6 +125,7 @@ func run() error {
 				r.MethodFunc("MKCOL", "/", handler.AddressBookMkcol(db))
 				r.MethodFunc("PROPFIND", "/", handler.AddressBookPropfind(db))
 				r.MethodFunc("PROPPATCH", "/", handler.PropPatchHandler(db))
+				r.MethodFunc("REPORT", "/", handler.AddressBookReport(db))
 				r.Delete("/", handler.AddressBookDelete(db))
 
 				// Contact resources: /dav/addressbooks/{username}/{book}/{filename}

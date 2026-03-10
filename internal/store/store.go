@@ -82,6 +82,15 @@ type Contact struct {
 	UpdatedAt     time.Time
 }
 
+// ContactFilter restricts the contacts returned by SearchContacts.
+// A nil value or empty fields means no filter is applied (return all).
+type ContactFilter struct {
+	// PropName is the vCard property name to match against (e.g. "FN", "EMAIL").
+	PropName string
+	// TextMatch is the substring to search for (case-insensitive contains).
+	TextMatch string
+}
+
 // SyncLogEntry records a single add/modify/delete event for delta sync.
 type SyncLogEntry struct {
 	ID            int64
@@ -184,6 +193,9 @@ type ContactStore interface {
 	ListContacts(ctx context.Context, addressBookID string) ([]*Contact, error)
 	UpdateContact(ctx context.Context, c *Contact) error
 	DeleteContact(ctx context.Context, id string) error
+	// SearchContacts returns contacts matching the optional filter.
+	// Nil filter is equivalent to ListContacts.
+	SearchContacts(ctx context.Context, addressBookID string, filter *ContactFilter) ([]*Contact, error)
 }
 
 // SyncStore manages delta-sync tokens and log entries.

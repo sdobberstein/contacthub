@@ -13,10 +13,11 @@ principals:
 # Limit to rfc6764 for Phase 5.
 # Expand as more phases are implemented.
 suites:
-  - rfc6764
-  - rfc4918
   - rfc2426
+  - rfc4918
   - rfc6350
+  - rfc6352
+  - rfc6764
 
 severity: must
 

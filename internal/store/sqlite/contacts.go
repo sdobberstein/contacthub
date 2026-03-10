@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/sdobberstein/contacthub/internal/store"
@@ -149,6 +150,51 @@ func (d *DB) DeleteContact(ctx context.Context, id string) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+// SearchContacts returns contacts in addressBookID matching the optional filter.
+// A nil filter or empty filter fields is equivalent to ListContacts.
+// PropName "FN" and "ORG"/"ORGANIZATION" match against indexed columns;
+// any other PropName falls back to a substring search on the full vCard text.
+func (d *DB) SearchContacts(ctx context.Context, addressBookID string, filter *store.ContactFilter) ([]*store.Contact, error) {
+	if filter == nil || filter.PropName == "" || filter.TextMatch == "" {
+		return d.ListContacts(ctx, addressBookID)
+	}
+
+	// LIKE pattern for case-insensitive contains match (RFC 6352 §8.6.4 default).
+	pattern := "%" + filter.TextMatch + "%"
+
+	const (
+		queryFN   = `SELECT id, uid, address_book_id, filename, etag, vcard, fn, kind, organization, birthday, anniversary, photo_size, created_at, updated_at FROM contacts WHERE address_book_id = ? AND fn LIKE ? ORDER BY filename`
+		queryOrg  = `SELECT id, uid, address_book_id, filename, etag, vcard, fn, kind, organization, birthday, anniversary, photo_size, created_at, updated_at FROM contacts WHERE address_book_id = ? AND organization LIKE ? ORDER BY filename`
+		queryVCard = `SELECT id, uid, address_book_id, filename, etag, vcard, fn, kind, organization, birthday, anniversary, photo_size, created_at, updated_at FROM contacts WHERE address_book_id = ? AND vcard LIKE ? ORDER BY filename`
+	)
+
+	var query string
+	switch strings.ToUpper(filter.PropName) {
+	case "FN":
+		query = queryFN
+	case "ORG", "ORGANIZATION":
+		query = queryOrg
+	default:
+		query = queryVCard
+	}
+
+	rows, err := d.db.QueryContext(ctx, query, addressBookID, pattern)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close() //nolint:errcheck // read-only rows, close error not actionable
+
+	var contacts []*store.Contact
+	for rows.Next() {
+		c, err := scanContact(rows)
+		if err != nil {
+			return nil, err
+		}
+		contacts = append(contacts, c)
+	}
+	return contacts, rows.Err()
 }
 
 // --- helpers ---

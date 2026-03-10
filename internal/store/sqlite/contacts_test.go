@@ -198,6 +198,96 @@ func TestContactStore_DeleteNotFound(t *testing.T) {
 	}
 }
 
+func TestContactStore_SearchContacts_NilFilter(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	setupBook(t, db, "u1", "alice", "ab1", "personal")
+
+	_ = db.CreateContact(ctx, makeContact("c1", "urn:uuid:aaa", "ab1", "alice.vcf"))
+	_ = db.CreateContact(ctx, makeContact("c2", "urn:uuid:bbb", "ab1", "bob.vcf"))
+
+	contacts, err := db.SearchContacts(ctx, "ab1", nil)
+	if err != nil {
+		t.Fatalf("SearchContacts nil: %v", err)
+	}
+	if len(contacts) != 2 {
+		t.Errorf("want 2, got %d", len(contacts))
+	}
+}
+
+func TestContactStore_SearchContacts_FNFilter(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	setupBook(t, db, "u1", "alice", "ab1", "personal")
+
+	alice := makeContact("c1", "urn:uuid:aaa", "ab1", "alice.vcf")
+	alice.FN = "Alice Test"
+	_ = db.CreateContact(ctx, alice)
+
+	bob := makeContact("c2", "urn:uuid:bbb", "ab1", "bob.vcf")
+	bob.FN = "Bob Test"
+	_ = db.CreateContact(ctx, bob)
+
+	contacts, err := db.SearchContacts(ctx, "ab1", &store.ContactFilter{
+		PropName:  "FN",
+		TextMatch: "Alice",
+	})
+	if err != nil {
+		t.Fatalf("SearchContacts FN: %v", err)
+	}
+	if len(contacts) != 1 || contacts[0].Filename != "alice.vcf" {
+		t.Errorf("want [alice.vcf], got %v", contactFilenames(contacts))
+	}
+}
+
+func TestContactStore_SearchContacts_FNFilter_CaseInsensitive(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	setupBook(t, db, "u1", "alice", "ab1", "personal")
+
+	alice := makeContact("c1", "urn:uuid:aaa", "ab1", "alice.vcf")
+	alice.FN = "Alice Test"
+	_ = db.CreateContact(ctx, alice)
+
+	contacts, err := db.SearchContacts(ctx, "ab1", &store.ContactFilter{
+		PropName:  "FN",
+		TextMatch: "alice", // lowercase
+	})
+	if err != nil {
+		t.Fatalf("SearchContacts FN lower: %v", err)
+	}
+	if len(contacts) != 1 {
+		t.Errorf("want 1, got %d", len(contacts))
+	}
+}
+
+func TestContactStore_SearchContacts_NoMatch(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	setupBook(t, db, "u1", "alice", "ab1", "personal")
+
+	_ = db.CreateContact(ctx, makeContact("c1", "urn:uuid:aaa", "ab1", "alice.vcf"))
+
+	contacts, err := db.SearchContacts(ctx, "ab1", &store.ContactFilter{
+		PropName:  "FN",
+		TextMatch: "Charlie",
+	})
+	if err != nil {
+		t.Fatalf("SearchContacts no-match: %v", err)
+	}
+	if len(contacts) != 0 {
+		t.Errorf("want 0, got %d", len(contacts))
+	}
+}
+
+func contactFilenames(contacts []*store.Contact) []string {
+	names := make([]string, len(contacts))
+	for i, c := range contacts {
+		names[i] = c.Filename
+	}
+	return names
+}
+
 func TestContactStore_DeleteCascadesWithAddressBook(t *testing.T) {
 	db := newTestDB(t)
 	ctx := context.Background()

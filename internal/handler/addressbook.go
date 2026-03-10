@@ -291,6 +291,10 @@ func buildAddressBookProps(pf *davxml.PropFind, ab *store.AddressBook) []davxml.
 			davxml.NScarddav, "supported-address-data",
 			func(b *davxml.PropBuilder) { b.AddSupportedAddressData() },
 		},
+		{
+			davxml.NSdav, "supported-report-set",
+			func(b *davxml.PropBuilder) { b.AddSupportedReportSet() },
+		},
 	}
 	return buildPropResponse(pf, props)
 }
