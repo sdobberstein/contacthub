@@ -131,3 +131,76 @@ func TestReplaceUID_InsertsWhenMissing(t *testing.T) {
 		t.Errorf("ReplaceUID did not insert UID, got:\n%s", result)
 	}
 }
+
+// --- Unfold ---
+
+func TestUnfold_RemovesCRLFSpace(t *testing.T) {
+	folded := "FN:Alice\r\n  Smith\r\n"
+	got := vcard.Unfold(folded)
+	if strings.Contains(got, "\r\n ") {
+		t.Errorf("Unfold left CRLF+space: %q", got)
+	}
+	if !strings.Contains(got, "Alice Smith") {
+		t.Errorf("Unfold lost content: %q", got)
+	}
+}
+
+func TestUnfold_RemovesCRLFTab(t *testing.T) {
+	folded := "FN:Alice\r\n\tSmith\r\n"
+	got := vcard.Unfold(folded)
+	if strings.Contains(got, "\r\n\t") {
+		t.Errorf("Unfold left CRLF+tab: %q", got)
+	}
+}
+
+// --- Validate ---
+
+func TestValidate_ValidV4(t *testing.T) {
+	blob := "BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Alice\r\nEND:VCARD\r\n"
+	if err := vcard.Validate(blob); err != nil {
+		t.Errorf("want nil, got %v", err)
+	}
+}
+
+func TestValidate_ValidV3(t *testing.T) {
+	blob := "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Alice\r\nN:Test;Alice;;;\r\nEND:VCARD\r\n"
+	if err := vcard.Validate(blob); err != nil {
+		t.Errorf("want nil, got %v", err)
+	}
+}
+
+func TestValidate_MissingVersion(t *testing.T) {
+	blob := "BEGIN:VCARD\r\nFN:Alice\r\nN:Test;Alice;;;\r\nEND:VCARD\r\n"
+	if err := vcard.Validate(blob); err == nil {
+		t.Error("want error for missing VERSION")
+	}
+}
+
+func TestValidate_InvalidVersion(t *testing.T) {
+	blob := "BEGIN:VCARD\r\nVERSION:2.1\r\nFN:Alice\r\nN:Test;Alice;;;\r\nEND:VCARD\r\n"
+	if err := vcard.Validate(blob); err == nil {
+		t.Error("want error for VERSION:2.1")
+	}
+}
+
+func TestValidate_MissingFN(t *testing.T) {
+	blob := "BEGIN:VCARD\r\nVERSION:4.0\r\nN:Test;Alice;;;\r\nEND:VCARD\r\n"
+	if err := vcard.Validate(blob); err == nil {
+		t.Error("want error for missing FN")
+	}
+}
+
+func TestValidate_V3MissingN(t *testing.T) {
+	blob := "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Alice\r\nEND:VCARD\r\n"
+	if err := vcard.Validate(blob); err == nil {
+		t.Error("want error for v3.0 missing N")
+	}
+}
+
+func TestValidate_V4MissingN_OK(t *testing.T) {
+	// N is optional in vCard 4.0 (RFC 6350 §6.2.2 cardinality *1).
+	blob := "BEGIN:VCARD\r\nVERSION:4.0\r\nFN:Alice\r\nEND:VCARD\r\n"
+	if err := vcard.Validate(blob); err != nil {
+		t.Errorf("N should be optional in v4.0, got: %v", err)
+	}
+}

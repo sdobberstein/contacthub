@@ -6,11 +6,43 @@ package vcard
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
 )
+
+// ErrInvalidVCard is returned by Validate for structurally invalid vCards.
+var ErrInvalidVCard = errors.New("invalid vCard")
+
+// Validate checks that blob satisfies the minimum RFC 2426/6350 requirements:
+//   - VERSION must be present and "3.0" or "4.0"
+//   - FN must be present (required in both v3.0 and v4.0)
+//   - N must be present when VERSION is "3.0" (required by RFC 2426 §3.1.2)
+//
+// The blob should already be unfolded before calling Validate.
+func Validate(blob string) error {
+	version := strings.ToUpper(strings.TrimSpace(extractProp(blob, "VERSION")))
+	if version == "" {
+		return fmt.Errorf("%w: missing VERSION", ErrInvalidVCard)
+	}
+	if version != "3.0" && version != "4.0" {
+		return fmt.Errorf("%w: unsupported VERSION %q (must be 3.0 or 4.0)", ErrInvalidVCard, version)
+	}
+	if extractProp(blob, "FN") == "" {
+		return fmt.Errorf("%w: missing required FN property", ErrInvalidVCard)
+	}
+	if version == "3.0" && extractProp(blob, "N") == "" {
+		return fmt.Errorf("%w: missing required N property (vCard 3.0)", ErrInvalidVCard)
+	}
+	return nil
+}
+
+// Unfold removes vCard line folding (CRLF + linear whitespace) per RFC 6350 §3.2.
+func Unfold(blob string) string {
+	return unfold(blob)
+}
 
 
 // ComputeETag returns the first 16 bytes of SHA-256(blob) as a lowercase hex string.
@@ -145,9 +177,14 @@ func extractProp(blob, propName string) string {
 	return ""
 }
 
-// unfold removes vCard line folding (CRLF + linear whitespace) per RFC 5545 §3.1.
+// unfold removes vCard line folding per RFC 6350 §3.2.
+// Handles both CRLF+whitespace (spec-compliant) and LF+whitespace (lenient).
 func unfold(blob string) string {
+	// CRLF folding first (spec form).
 	blob = strings.ReplaceAll(blob, "\r\n ", "")
 	blob = strings.ReplaceAll(blob, "\r\n\t", "")
+	// LF-only folding (tolerated per common practice).
+	blob = strings.ReplaceAll(blob, "\n ", "")
+	blob = strings.ReplaceAll(blob, "\n\t", "")
 	return blob
 }

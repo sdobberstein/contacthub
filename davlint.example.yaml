@@ -17,6 +17,7 @@ suites:
   - rfc4918
   - rfc6350
   - rfc6352
+  - rfc6578
   - rfc6764
 
 severity: must

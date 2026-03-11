@@ -163,6 +163,115 @@ func TestContactPut_IfMatchPrecondition(t *testing.T) {
 	}
 }
 
+func TestContactPut_MissingFN_Returns422(t *testing.T) {
+	db := newTestDB(t)
+	setupAliceWithBook(t, db)
+	alice := &auth.Principal{Username: "alice"}
+
+	body := "BEGIN:VCARD\r\nVERSION:4.0\r\nEND:VCARD\r\n"
+	r := putContactRequest(t, "/dav/addressbooks/alice/personal/alice.vcf", body)
+	r = withPrincipal(r, alice)
+	r = withChiParam(r, "username", "alice")
+	r = withChiParam(r, "book", "personal")
+	r = withChiParam(r, "filename", "alice.vcf")
+	w := httptest.NewRecorder()
+	handler.ContactPut(db)(w, r)
+
+	if w.Code < 400 || w.Code >= 500 {
+		t.Errorf("want 4xx for missing FN, got %d", w.Code)
+	}
+}
+
+func TestContactPut_MissingN_V3_Returns422(t *testing.T) {
+	db := newTestDB(t)
+	setupAliceWithBook(t, db)
+	alice := &auth.Principal{Username: "alice"}
+
+	body := "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Alice\r\nEND:VCARD\r\n"
+	r := putContactRequest(t, "/dav/addressbooks/alice/personal/alice.vcf", body)
+	r = withPrincipal(r, alice)
+	r = withChiParam(r, "username", "alice")
+	r = withChiParam(r, "book", "personal")
+	r = withChiParam(r, "filename", "alice.vcf")
+	w := httptest.NewRecorder()
+	handler.ContactPut(db)(w, r)
+
+	if w.Code < 400 || w.Code >= 500 {
+		t.Errorf("want 4xx for v3.0 missing N, got %d", w.Code)
+	}
+}
+
+func TestContactPut_MissingVersion_Returns422(t *testing.T) {
+	db := newTestDB(t)
+	setupAliceWithBook(t, db)
+	alice := &auth.Principal{Username: "alice"}
+
+	body := "BEGIN:VCARD\r\nFN:Alice\r\nN:Test;Alice;;;\r\nEND:VCARD\r\n"
+	r := putContactRequest(t, "/dav/addressbooks/alice/personal/alice.vcf", body)
+	r = withPrincipal(r, alice)
+	r = withChiParam(r, "username", "alice")
+	r = withChiParam(r, "book", "personal")
+	r = withChiParam(r, "filename", "alice.vcf")
+	w := httptest.NewRecorder()
+	handler.ContactPut(db)(w, r)
+
+	if w.Code < 400 || w.Code >= 500 {
+		t.Errorf("want 4xx for missing VERSION, got %d", w.Code)
+	}
+}
+
+func TestContactPut_InvalidVersion_Returns422(t *testing.T) {
+	db := newTestDB(t)
+	setupAliceWithBook(t, db)
+	alice := &auth.Principal{Username: "alice"}
+
+	body := "BEGIN:VCARD\r\nVERSION:2.1\r\nFN:Alice\r\nN:Test;Alice;;;\r\nEND:VCARD\r\n"
+	r := putContactRequest(t, "/dav/addressbooks/alice/personal/alice.vcf", body)
+	r = withPrincipal(r, alice)
+	r = withChiParam(r, "username", "alice")
+	r = withChiParam(r, "book", "personal")
+	r = withChiParam(r, "filename", "alice.vcf")
+	w := httptest.NewRecorder()
+	handler.ContactPut(db)(w, r)
+
+	if w.Code < 400 || w.Code >= 500 {
+		t.Errorf("want 4xx for VERSION:2.1, got %d", w.Code)
+	}
+}
+
+func TestContactPut_FoldedLine_StoredUnfolded(t *testing.T) {
+	db := newTestDB(t)
+	setupAliceWithBook(t, db)
+	alice := &auth.Principal{Username: "alice"}
+
+	// FN value is folded at 75 chars per RFC 6350 §3.2.
+	folded := "BEGIN:VCARD\r\nVERSION:4.0\r\n" +
+		"FN:Alice Test User With A Very Long Full Name That Needs Folding\r\n" +
+		"  At Seventy Five Characters\r\n" +
+		"END:VCARD\r\n"
+	r := putContactRequest(t, "/dav/addressbooks/alice/personal/alice.vcf", folded)
+	r = withPrincipal(r, alice)
+	r = withChiParam(r, "username", "alice")
+	r = withChiParam(r, "book", "personal")
+	r = withChiParam(r, "filename", "alice.vcf")
+	handler.ContactPut(db)(httptest.NewRecorder(), r)
+
+	// GET should return unfolded content.
+	rg, _ := http.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/dav/addressbooks/alice/personal/alice.vcf", http.NoBody)
+	rg = withPrincipal(rg, alice)
+	rg = withChiParam(rg, "username", "alice")
+	rg = withChiParam(rg, "book", "personal")
+	rg = withChiParam(rg, "filename", "alice.vcf")
+	wg := httptest.NewRecorder()
+	handler.ContactGet(db)(wg, rg)
+
+	const want = "Alice Test User With A Very Long Full Name That Needs Folding At Seventy Five Characters"
+	if !strings.Contains(wg.Body.String(), want) {
+		t.Errorf("GET body should contain unfolded FN\nbody: %s", wg.Body.String())
+	}
+}
+
 func TestContactPut_NoAuth_Returns401(t *testing.T) {
 	db := newTestDB(t)
 	r := putContactRequest(t, "/dav/addressbooks/alice/personal/alice.vcf", testVCard)

@@ -106,7 +106,13 @@ func ContactPut(st store.Store) http.HandlerFunc {
 			return
 		}
 
-		blob := string(body)
+		blob := vcard.Unfold(string(body))
+
+		// Validate required fields before any conversion (RFC 2426/6350).
+		if err := vcard.Validate(blob); err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
 
 		// Enforce photo size limit before any conversion.
 		if err := vcard.ValidatePhotoSize(blob); err != nil {
